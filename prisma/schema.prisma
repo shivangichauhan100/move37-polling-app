@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String  @id @default(cuid())
+  name         String
+  email        String  @unique
+  passwordHash String
+
+  // Relations
+  polls        Poll[]
+  votes        Vote[]
+
+  @@index([email])
+}
+
+model Poll {
+  id          String   @id @default(cuid())
+  question    String
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Creator
+  creatorId String
+  creator   User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  // Options
+  options   PollOption[]
+}
+
+model PollOption {
+  id     String @id @default(cuid())
+  text   String
+
+  // Parent poll
+  pollId String
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  // Votes (many-to-many via Vote)
+  votes  Vote[]
+
+  @@index([pollId])
+}
+
+// Join model to represent many-to-many between User and PollOption
+model Vote {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+
+  // Relations
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  pollOptionId  String
+  pollOption    PollOption @relation(fields: [pollOptionId], references: [id], onDelete: Cascade)
+
+  // A user may vote at most once per option
+  @@unique([userId, pollOptionId])
+  @@index([pollOptionId])
+  @@index([userId])
+}
